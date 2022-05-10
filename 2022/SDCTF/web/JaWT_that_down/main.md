@@ -1,8 +1,8 @@
 # JaWT That Down
 
-**Category**: Web
-**Level**: Easy
-**Points**: 200
+**Category**: Web  
+**Level**: Easy  
+**Points**: 200  
 **Description**:
 ```
 The new ultra maximum security plugin I installed on my website is so good that even I can’t log in. Hackers don’t stand a chance.
