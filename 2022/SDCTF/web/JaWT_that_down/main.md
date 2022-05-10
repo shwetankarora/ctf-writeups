@@ -17,15 +17,17 @@ The description of this challenge doesn't have much clues but the creator have d
 I started by performing SQL injection in the login form with simple payloads from the top of my head but it didn't work. I was tempted to run sqlmap behind the scenes but I resisted and looked through the source code using browser's(Chrome in my case) debugger tools. I took this detour because I had also spent time on the challenge 'HuMongous Mistake'(which I wasn't able to solve) and found some useful comments in the HTML source code. 
 In a similar manner, I found the user credentials and was able to successfully log in which saved me a lot of time.
 
-<screenshot> * 1
+![Browser Debugger Tools HTML Code](https://raw.githubusercontent.com/shwetankarora/ctf-writeups/main/2022/SDCTF/web/JaWT_that_down/screenshots/browser_debugger_user_pass.png)
 
 After login, the first thing that caught my eye was an extra menu item named 'Flag' on the top left but once I click on it, it showed "Invalid Token: Access Denied". 
 
-<screenshot> * 2
+![Browser Flag Menu Item](https://raw.githubusercontent.com/shwetankarora/ctf-writeups/main/2022/SDCTF/web/JaWT_that_down/screenshots/browser_flag_menu_item.png)
+
+![Browser Invalid Token](https://raw.githubusercontent.com/shwetankarora/ctf-writeups/main/2022/SDCTF/web/JaWT_that_down/screenshots/browser_invalid_token.png)
 
 I fired up Burp Suite and intercepted the HTTP call which is sent once I click on 'Flag'. Let's call it flag endpoint. The first thing that caught my eye was the JWT token which is passed in Cookie request header. So, I replayed the request after removing the Cookie request header which showed me a different error "No Token: Access Denied". I was fully convinced that I am on the right track and I need to pass a valid JWT token in order to proceed. 
 
-<screenshot>
+![Burp Suite No Token](https://raw.githubusercontent.com/shwetankarora/ctf-writeups/main/2022/SDCTF/web/JaWT_that_down/screenshots/burp_suite_no_token.png)
 
 My next step was to figure out why my JWT isn't valid. I read the token on https://jwt.io/ and figured out that the issue time and expiry time has a gap of mere 2 seconds which explained the error "Invalid Token: Access Denied" because by the time I clicked on 'Flag' the token was already expired. I had two solutions in my mind to overcome this problem:
 - Either, I can verify if JWT signature verfiication can be bypassed which will allow me to increase the expiry time.
