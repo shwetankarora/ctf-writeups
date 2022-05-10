@@ -3,23 +3,30 @@
 **Category**: Web  
 **Level**: Easy  
 **Points**: 200  
-**Description**:
-```
-The new ultra maximum security plugin I installed on my website is so good that even I can’t log in. Hackers don’t stand a chance.
+**Description**: The new ultra maximum security plugin I installed on my website is so good that even I can’t log in. Hackers don’t stand a chance.
 Website
 https://jawt.sdc.tf/
-```
 
-## Writeup
+### Writeup
 
 The description of this challenge doesn't have much clues but the creator have deliberately captilized the letters 'J', 'W', 'T' in the heading which caught our attention. We immediately got the hint that this challenge will require the knowledge of JWT and its exploitation. We started by glancing through the website's functionality on a very high level and were easily able to figure out that we somehow have to get through the user login. This will provide us the JWT token which can be further exploited to get the flag. After this high level run through, I was assigned to pick up this challenge.
 
-I started by performing SQL injection in the login form with simple payloads from the top of my head but it didn't work. I was tempted to run sqlmap behind the scenes but I resisted and looked through the source code using browser's(Chrome in my case) debugger tools. I took this detour because I had also spent time on the challenge 'HuMongous Mistake'(which I wasn't able to solve) and found some useful comments in the HTML source code. 
-In a similar manner, I found the user credentials and was able to successfully log in which saved me a lot of time.
+
+##### Step 1 : Finding User Login Credentials
+
+I started by performing SQL injection in the login form with simple payloads from the top of my head but it didn't work. I was tempted to run `sqlmap` behind the scenes but I resisted and looked through the source code using browser's(Chrome in my case) debugger tools. I took this detour because I had also spent time on the challenge 'HuMongous Mistake'(which I wasn't able to solve) and found some useful comments in the JavaScript source code.
+
+So my approach was to look for potentially dangerous JavaScript functions in JS file `login.js` which was loaded on the login form web page. The code was written in reactJS and one such function was `dangerouslySetInnerHTML`. Under one of the occurences of this function was the user credentials using which I was successfully able to log in. This saved me a lot of time. 
+
+![Browser Debugger Tools JS Code](https://raw.githubusercontent.com/shwetankarora/ctf-writeups/main/2022/SDCTF/web/JaWT_that_down/screenshots/browser_debugger_js_user_pass.png)
+
+However, later I realised that I could have right clicked on the username/password field of login form and selected "Inspect". This would also have shown me the user credentials.
 
 ![Browser Debugger Tools HTML Code](https://raw.githubusercontent.com/shwetankarora/ctf-writeups/main/2022/SDCTF/web/JaWT_that_down/screenshots/browser_debugger_user_pass.png)
 
-After login, the first thing that caught my eye was an extra menu item named 'Flag' on the top left but once I click on it, it showed "Invalid Token: Access Denied". 
+##### Step 2 : Observe After Log In
+
+After login, the first thing that caught my eye was an extra menu item named 'Flag' on the top left. But once I click on it, it showed "Invalid Token: Access Denied". 
 
 ![Browser Flag Menu Item](https://raw.githubusercontent.com/shwetankarora/ctf-writeups/main/2022/SDCTF/web/JaWT_that_down/screenshots/browser_flag_menu_item.png)
 
@@ -29,22 +36,24 @@ I fired up Burp Suite and intercepted the HTTP call which is sent once I click o
 
 ![Burp Suite No Token](https://raw.githubusercontent.com/shwetankarora/ctf-writeups/main/2022/SDCTF/web/JaWT_that_down/screenshots/burp_suite_no_token.png)
 
-My next step was to figure out why my JWT isn't valid. I read the token on https://jwt.io/ and figured out that the issue time and expiry time has a gap of mere 2 seconds which explained the error "Invalid Token: Access Denied" because by the time I clicked on 'Flag' the token was already expired. I had two solutions in my mind to overcome this problem:
-- Either, I can verify if JWT signature verfiication can be bypassed which will allow me to increase the expiry time.
-- Or, I make a script to automate this process of logging in and using the JWT token in the next flag endpoint.
+##### Step 3 : Get Valid JWT for Flag Endpoint
 
-### First Approach
+My next step was to figure out why my JWT is invalid. I decoded and read the contents of the JWT token on https://jwt.io/ and figured out that the issue time(iat) and expiry time(exp) has a gap of mere 2 seconds which explained the error "Invalid Token: Access Denied" because by the time I clicked on 'Flag' the token was already expired. I had two solutions in my mind to overcome this problem:
+1. Either, I can verify if JWT signature verfiication can be bypassed which will allow me to increase the expiry time.
+2. Or, I make a script to automate this process of logging in and using the JWT token in the next flag endpoint.
+
+**First Approach - Signature Verification Bypass**
 
 I went with the first option because writing a script for me would take comparatively more time. Here is a [good read of JWT's 'none' algorithm](https://medium.com/@phosmet/forging-jwt-exploiting-the-none-algorithm-a37d670af54f).
 Essentially, I divided the JWT token into 3 base64 encoded parts by splitting it using '.'(period). I base64 decoded the first part on https://www.base64decode.org/, changed the value of "alg" to "none", base64 encoded it on https://www.base64encode.org/. This was tampering of first part of JWT(called header). Then I did the same thing with the second part(called payload) except I increased the expiry to a month. I joined both the parts and recreated my final JWT token
 
-**Before**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkF6dXJlRGlhbW9uZCIsInRva2VuIjoiZGVmZjVmZmU0YWY0OWYzOWE3ZjI2YTBlN2U0NGQ1NCIsImlhdCI6MTY1MjE3NzExMiwiZXhwIjoxNjUyMTc3MTE0fQ.jmcOs7t4hSFYad3wz2S993jJ7lQOYbG_paBrqSByBBM`
+*Before*: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IkF6dXJlRGlhbW9uZCIsInRva2VuIjoiZGVmZjVmZmU0YWY0OWYzOWE3ZjI2YTBlN2U0NGQ1NCIsImlhdCI6MTY1MjE3NzExMiwiZXhwIjoxNjUyMTc3MTE0fQ.jmcOs7t4hSFYad3wz2S993jJ7lQOYbG_paBrqSByBBM`
 
-**After**: `eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VybmFtZSI6IkF6dXJlRGlhbW9uZCIsInRva2VuIjoiZGVmZjVmZmU0YWY0OWYzOWE3ZjI2YTBlN2U0NGQ1NCIsImlhdCI6MTY1MjE3NzExMiwiZXhwIjoxNjU0ODU3NDI3fQ.`
+*After*: `eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VybmFtZSI6IkF6dXJlRGlhbW9uZCIsInRva2VuIjoiZGVmZjVmZmU0YWY0OWYzOWE3ZjI2YTBlN2U0NGQ1NCIsImlhdCI6MTY1MjE3NzExMiwiZXhwIjoxNjU0ODU3NDI3fQ.`
 
 However, I got the same error "Invalid Token: Access Denied" using my new token. Hence, I scratched out the first approach and went back to the second approach.
 
-### Second Approach
+**Second Approach - Automate Log In and Flag Endpoint**
 
 I quickly wrote a little python script which looked like this:
 ```python
@@ -103,23 +112,12 @@ The above script hits the `/login` endpoint, reads the JWT token from Set-Cookie
 d
 ```
 
-I wasn't able to understand the response of this for a long time. I tried hitting `/d` endpoint by changing the python script but it gave me 404 not found. Similariy, I tried hitting `/sd` and enumerated from `/a` to `/z` both in small and capital letters but got the same result. At this point, I took a new challenge. I later got an idea to give a try to `/s/d` and it worked. It gave me `/c`. Since all the flag of this challenge started with 'sdctf' therefore I continued this methodology by changing the script, saving and hitting one by one. Evnetually I got this endpoint `https://jawt.sdc.tf/s/d/c/t/f/{/T/h/3/_/m/0/r/3/_/t/0/k/3/n/s/_/t/h/e/_/l/e/5/5/_/p/r/0/b/l/3/m/s/_/a/d/f/3/d/}` which has the flag
+I wasn't able to understand the response of this for a long time. I tried hitting `/d` endpoint by changing the python script but it gave me 404 not found. Similariy, I tried hitting `/sd` and enumerated from `/a` to `/z` both in small and capital letters but got the same result. At this point, I took a new challenge. I later got an idea to give a try to `/s/d` and it worked. It gave me `/c`. Since all the flag of this challenge started with 'sdctf' therefore I continued this methodology by changing the script, saving and hitting one by one. Eventually I got this endpoint `https://jawt.sdc.tf/s/d/c/t/f/{/T/h/3/_/m/0/r/3/_/t/0/k/3/n/s/_/t/h/e/_/l/e/5/5/_/p/r/0/b/l/3/m/s/_/a/d/f/3/d/}` which has the flag
 
 **Flag** - `sdctf{Th3_m0r3_t0k3ns_the_le55_pr0bl3ms_adf3d}`
 
 
-## Real World Application
+### Real World Application
 
 In real world applications, short-lived JWT tokens are very much used. But even if they are short-lived, they can be exploited to retrieve sensitive information. Hence, reducing the expiry time wouldn't necessarily mean that the system is protected.
-During the course of this challenge, I had great fun reading about JWT, JWK and JWS which enhanced my knowledge while at the same time helped me practically understand the exploitation of it. 
-
-
-
-
-
-
-
-
-
-
-
+During the course of this challenge, I had great fun reading about JWT, JWK and JWS which enhanced my knowledge while at the same time helped me practically understand the exploitation of it.
